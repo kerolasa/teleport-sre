@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>teleport-sre</title>
+    <script src="https://unpkg.com/htmx.org@2/dist/htmx.min.js"></script>
+    <style>
+      body {
+        background-color: #ffffff;
+        color: #111111;
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 2rem;
+      }
+      table {
+        border-collapse: collapse;
+        margin-top: 1.5rem;
+      }
+      th,
+      td {
+        border: 1px solid #d0d0d0;
+        padding: 0.4rem 0.8rem;
+        text-align: left;
+      }
+      th.replicas,
+      td.replicas {
+        text-align: right;
+      }
+      button.replicas {
+        background: none;
+        border: none;
+        color: #1a5fb4;
+        cursor: pointer;
+        font: inherit;
+        padding: 0;
+        text-decoration: underline dotted;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- The button asks the api for the deployment table, and the response
+         replaces the placeholder element below it. -->
+    <button
+      type="button"
+      hx-get="{{ .ListURL }}"
+      hx-target="#deployments"
+      hx-swap="outerHTML"
+    >
+      list deployments
+    </button>
+    <div id="deployments"></div>
+  </body>
+</html>

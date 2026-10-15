@@ -1,0 +1,12 @@
+# Log level can be one of: trace debug info warn error fatal panic
+loglevel = "debug"
+
+[api]
+    host = "0.0.0.0"
+    port = 8443
+    prefix = "/"
+
+[metrics]
+    host = "127.0.0.1"
+    port = 9443
+    path = "/metrics"

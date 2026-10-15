@@ -1,0 +1,33 @@
+<table id="deployments">
+  <thead>
+    <tr>
+      <th>namespace</th>
+      <th>deployment</th>
+      <th class="replicas">replicas</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{- range .Deployments }}
+    <tr>
+      <td>{{ .Namespace }}</td>
+      <td>{{ .Name }}</td>
+      <td class="replicas">
+        <!-- TODO: the request returns the row with the replica count in an
+             editable form once the deployment routes are in place. -->
+        <button
+          type="button"
+          class="replicas"
+          title="edit replicas"
+          hx-get="{{ $.DeploymentURL }}?namespace={{ .Namespace }}&amp;name={{ .Name }}"
+          hx-target="closest tr"
+          hx-swap="outerHTML"
+        >{{ .Replicas }}</button>
+      </td>
+    </tr>
+    {{- else }}
+    <tr>
+      <td colspan="3">no deployments</td>
+    </tr>
+    {{- end }}
+  </tbody>
+</table>
