@@ -1,0 +1,22 @@
+<table id="deployments">
+  <thead>
+    <tr>
+      <th>namespace</th>
+      <th>deployment</th>
+      <th class="replicas">replicas</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{- range .Rows }}
+    <tr>
+      <td>{{ .Namespace }}</td>
+      <td>{{ .Name }}</td>
+      <td class="replicas">{{ template "replicas.html" .Cell }}</td>
+    </tr>
+    {{- else }}
+    <tr>
+      <td colspan="3">no deployments</td>
+    </tr>
+    {{- end }}
+  </tbody>
+</table>

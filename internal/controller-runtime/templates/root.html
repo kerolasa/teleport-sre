@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>teleport-sre</title>
+    <script src="https://unpkg.com/htmx.org@2/dist/htmx.min.js"></script>
+    <script>
+      // htmx leaves a failure response alone, so the cell the api renders as
+      // the failure is put in place of the form here.
+      function showUpdateFailure(event) {
+        event.detail.target.outerHTML = event.detail.xhr.response;
+      }
+    </script>
+    <style>
+      body {
+        background-color: #ffffff;
+        color: #111111;
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 2rem;
+      }
+      table {
+        border-collapse: collapse;
+        margin-top: 1.5rem;
+      }
+      th,
+      td {
+        border: 1px solid #d0d0d0;
+        padding: 0.4rem 0.8rem;
+        text-align: left;
+      }
+      th.replicas,
+      td.replicas {
+        text-align: right;
+      }
+      button.replicas {
+        background: none;
+        border: none;
+        color: #1a5fb4;
+        cursor: pointer;
+        font: inherit;
+        padding: 0;
+        text-decoration: underline dotted;
+      }
+      /* The form lays out with the submit button beside the value. */
+      form.replicas {
+        align-items: center;
+        display: inline-flex;
+        gap: 0.3rem;
+      }
+      input.replicas {
+        font: inherit;
+        text-align: right;
+        width: 5rem;
+      }
+      span.replicas-error {
+        color: #a51d2d;
+        font-size: 0.85rem;
+        margin-right: 0.3rem;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- The button asks the api for the deployment table, and the response
+         replaces the placeholder element below it. -->
+    <button
+      type="button"
+      hx-get="{{ .ListURL }}"
+      hx-target="#deployments"
+      hx-swap="outerHTML"
+    >
+      list deployments
+    </button>
+    <div id="deployments"></div>
+  </body>
+</html>
