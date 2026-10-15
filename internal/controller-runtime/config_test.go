@@ -81,6 +81,15 @@ func TestSampleConfigIsReadable(t *testing.T) {
 	if got, want := conf.Metrics.Path, "/metrics"; got != want {
 		t.Errorf("the sample configuration serves metrics at %q, want %q", got, want)
 	}
+	if got, want := conf.TLS.CA, "certs/ca.crt"; got != want {
+		t.Errorf("the sample configuration verifies callers with %q, want %q", got, want)
+	}
+	if got, want := conf.TLS.Cert, "certs/server.crt"; got != want {
+		t.Errorf("the sample configuration serves the certificate %q, want %q", got, want)
+	}
+	if got, want := conf.TLS.Key, "certs/server.key"; got != want {
+		t.Errorf("the sample configuration serves the key %q, want %q", got, want)
+	}
 	if conf.Loglevel == "" {
 		t.Error("the sample configuration says nothing about the log level")
 	}

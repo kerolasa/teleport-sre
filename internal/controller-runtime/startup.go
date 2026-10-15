@@ -67,7 +67,12 @@ func Run() int {
 	}()
 	defer stopCache()
 
-	apiServer := ListenAPI(config, kubeConn, cache)
+	apiServer, err := ListenAPI(config, kubeConn, cache)
+	if err != nil {
+		log.Error().Err(err).Msg("cannot set up the api server")
+		return EXIT_FAILURE
+	}
+
 	metricsServer := ListenMetrics(config, kubeConn)
 
 	type result struct {
@@ -81,7 +86,14 @@ func Run() int {
 		go func() {
 			defer listeners.Done()
 			log.Info().Str("server", name).Str("address", server.Addr).Msg("listening")
-			err := server.ListenAndServe()
+			// A server holding keys serves TLS, and the keys are in the
+			// configuration already, so no file is named here.
+			var err error
+			if server.TLSConfig != nil {
+				err = server.ListenAndServeTLS("", "")
+			} else {
+				err = server.ListenAndServe()
+			}
 			if errors.Is(err, http.ErrServerClosed) {
 				err = nil
 			}

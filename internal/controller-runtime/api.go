@@ -68,7 +68,14 @@ type api struct {
 	maxReplicas int32
 }
 
-func ListenAPI(conf Conf, kubeConn KubeConn, cache *Cache) *http.Server {
+func ListenAPI(conf Conf, kubeConn KubeConn, cache *Cache) (*http.Server, error) {
+	// The keys are read before anything is served, so a service that cannot
+	// authenticate its callers never starts.
+	secure, err := tlsConfig(conf.TLS)
+	if err != nil {
+		return nil, err
+	}
+
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(CountRequests())
@@ -96,11 +103,12 @@ func ListenAPI(conf Conf, kubeConn KubeConn, cache *Cache) *http.Server {
 
 		Addr:              net.JoinHostPort(conf.API.Host, strconv.Itoa(int(conf.API.Port))),
 		Handler:           r,
+		TLSConfig:         secure,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,
-	}
+	}, nil
 }
 
 // url joins a route onto the prefix.

@@ -68,8 +68,14 @@ func serveAPI(t *testing.T, conf Conf, kubeConn KubeConn, cache *Cache) *httptes
 	if conf.API.Prefix == "" {
 		conf.API.Prefix = "/"
 	}
+	// httptest serves over plain http, so the keys are of no use here.  They
+	// are still handed over, since the api insists on having them.
+	conf.TLS = testTLS(t)
 
-	server := ListenAPI(conf, kubeConn, cache)
+	server, err := ListenAPI(conf, kubeConn, cache)
+	if err != nil {
+		t.Fatalf("ListenAPI() returned an error: %v", err)
+	}
 	api := httptest.NewServer(server.Handler)
 	t.Cleanup(api.Close)
 
@@ -1135,7 +1141,12 @@ func TestAPIRoutesFollowThePrefix(t *testing.T) {
 	}
 
 	conf := Conf{API: Listener{Host: "127.0.0.1", Prefix: "/teleport"}}
-	api := httptest.NewServer(ListenAPI(conf, KubeConn{k8s: client}, cache).Handler)
+	conf.TLS = testTLS(t)
+	server, err := ListenAPI(conf, KubeConn{k8s: client}, cache)
+	if err != nil {
+		t.Fatalf("ListenAPI() returned an error: %v", err)
+	}
+	api := httptest.NewServer(server.Handler)
 	t.Cleanup(api.Close)
 
 	// The routes answer under the configured prefix, and nowhere else.

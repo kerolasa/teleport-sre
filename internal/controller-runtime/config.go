@@ -8,6 +8,7 @@ type Conf struct {
 	API      Listener
 	Metrics  Listener
 	Kube     KubeConf
+	TLS      TLSConf
 	Loglevel string
 	// MaxReplicas is the largest number of replicas a request is allowed to
 	// scale a deployment to.  An empty setting gets the default, and a negative
@@ -20,6 +21,19 @@ type Listener struct {
 	Port   uint16
 	Prefix string // where the api is mounted
 	Path   string // where the metrics are
+}
+
+// TLSConf tells where the keys and the certificates the api server terminates
+// TLS with are.  All three are needed, since a service that cannot tell its
+// callers apart has no business serving them.
+type TLSConf struct {
+	// CA is the certificate authority that signed the server certificate,
+	// and the one a client certificate is expected to be signed by.
+	CA string
+	// Cert is the certificate the api server serves.
+	Cert string
+	// Key is the private key of the server certificate.
+	Key string
 }
 
 // KubeConf tells how to reach the kubernetes api server.  An empty one leaves

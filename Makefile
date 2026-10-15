@@ -10,10 +10,15 @@ GOLDFLAGS := -X "$(GOPKGURL)/internal.Version=$(VERSION)" -X "$(GOPKGURL)/intern
 # the source directory it is built from cannot sit next to that directory.
 BINDIR := bin
 
+# The keys and the certificates go into this directory, since they are of no
+# use to anyone but the workstation that made them.
+CERTDIR := certs
+
 # help is the default target
 help:
 	@echo "make controller-runtime  build $(BINDIR)/controller-runtime"
 	@echo "make build               build all binaries"
+	@echo "make certs               create the tls keys and certificates in $(CERTDIR)"
 	@echo "make run                 build and run against ./sample-config.toml"
 	@echo "make gofmt               rewrite all go files with gofmt -s"
 	@echo "make test                run go test, go vet, gofmt check and golangci-lint"
@@ -28,11 +33,17 @@ build: controller-runtime
 $(BINDIR):
 	mkdir -p $(BINDIR)
 
+# certs creates the certificate authority, and the server and the client
+# certificates it signs, which the api server serves mTLS with.  It leaves an
+# existing set in $(CERTDIR) alone.
+certs:
+	./build-tools/make-certs.sh $(CERTDIR)
+
 # A phony target is one that is not really the name of a file; rather it is
 # just a name for a recipe to be executed when you make an explicit request.
-.PHONY: help build controller-runtime run gofmt test clean
+.PHONY: help build controller-runtime certs run gofmt test clean
 
-run: controller-runtime
+run: certs controller-runtime
 	./$(BINDIR)/controller-runtime --config ./sample-config.toml
 
 gofmt:
