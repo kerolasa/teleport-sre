@@ -33,3 +33,10 @@ max_replicas = 100
     # Kubeconfig context to use, defaults to the current context of the
     # kubeconfig.
     #context = "kind-kind"
+
+# What the client-go command authenticates with.  The api serves mTLS, and it
+# turns a caller with no certificate of its own away before it answers
+# anything.  It reaches the service at the address the [api] section gives.
+[client]
+    cert = "certs/client.crt"
+    key = "certs/client.key"

@@ -10,6 +10,10 @@ GOLDFLAGS := -X "$(GOPKGURL)/internal.Version=$(VERSION)" -X "$(GOPKGURL)/intern
 # the source directory it is built from cannot sit next to that directory.
 BINDIR := bin
 
+# A binary is built from these, so it is built again when one of them is newer
+# than the binary itself.  A binary is not built out of a test.
+SOURCES := $(shell find . -type f -name '*.go' -not -name '*_test.go') go.mod go.sum
+
 # The keys and the certificates go into this directory, since they are of no
 # use to anyone but the workstation that made them.
 CERTDIR := certs
@@ -17,6 +21,7 @@ CERTDIR := certs
 # help is the default target
 help:
 	@echo "make controller-runtime  build $(BINDIR)/controller-runtime"
+	@echo "make client-go           build $(BINDIR)/client-go"
 	@echo "make build               build all binaries"
 	@echo "make certs               create the tls keys and certificates in $(CERTDIR)"
 	@echo "make run                 build and run against ./sample-config.toml"
@@ -24,12 +29,22 @@ help:
 	@echo "make test                run go test, go vet, gofmt check and golangci-lint"
 	@echo "make clean               remove all untracked and ignored files"
 
-controller-runtime: $(BINDIR)
-	go build -ldflags "$(GOLDFLAGS)" -o $(BINDIR)/controller-runtime ./controller-runtime
+# controller-runtime and client-go are the binaries of the two main packages,
+# under the names they are asked for by.
+controller-runtime: $(BINDIR)/controller-runtime
+client-go: $(BINDIR)/client-go
+
+$(BINDIR)/controller-runtime: $(SOURCES) | $(BINDIR)
+	go build -ldflags "$(GOLDFLAGS)" -o $@ ./controller-runtime
+
+$(BINDIR)/client-go: $(SOURCES) | $(BINDIR)
+	go build -ldflags "$(GOLDFLAGS)" -o $@ ./client-go
 
 # build is the common case
-build: controller-runtime
+build: controller-runtime client-go
 
+# The directory is a prerequisite in the order-only sense, so that a binary
+# written into it does not make the others look out of date.
 $(BINDIR):
 	mkdir -p $(BINDIR)
 
@@ -41,7 +56,7 @@ certs:
 
 # A phony target is one that is not really the name of a file; rather it is
 # just a name for a recipe to be executed when you make an explicit request.
-.PHONY: help build controller-runtime certs run gofmt test clean
+.PHONY: help build certs run gofmt test clean
 
 run: certs controller-runtime
 	./$(BINDIR)/controller-runtime --config ./sample-config.toml

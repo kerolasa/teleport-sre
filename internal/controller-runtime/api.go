@@ -121,8 +121,8 @@ func (a *api) url(route string) string {
 // does not take as they are.
 func (a *api) urlOf(route string, deploy Deployment) string {
 	return a.url(route) + "?" + url.Values{
-		"ns":   {deploy.Namespace},
-		"name": {deploy.Name},
+		"ns":         {deploy.Namespace},
+		"deployment": {deploy.Name},
 	}.Encode()
 }
 
@@ -174,7 +174,7 @@ func (a *api) list(c *gin.Context) {
 
 // deployment reports the deployment the request names.
 func (a *api) deployment(c *gin.Context) {
-	namespace, name := askedNamespace(c), c.Query("name")
+	namespace, name := askedNamespace(c), c.Query("deployment")
 	inventory, err := a.inventory(namespace)
 	if err != nil {
 		refuse(c, err)
@@ -327,7 +327,7 @@ func (a *api) askedUpdate(c *gin.Context) (Deployment, int32, error) {
 // askedDeployment is the deployment the request names, which needs a
 // namespace, as a name on its own can repeat in another.
 func (a *api) askedDeployment(c *gin.Context) (Deployment, error) {
-	name := c.Query("name")
+	name := c.Query("deployment")
 	if name == "" {
 		return Deployment{}, newRefusal(http.StatusBadRequest, "no deployment name was given")
 	}

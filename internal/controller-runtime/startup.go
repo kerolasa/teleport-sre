@@ -16,11 +16,6 @@ import (
 	"github.com/kerolasa/teleport-sre/internal"
 )
 
-const (
-	EXIT_SUCCESS = 0
-	EXIT_FAILURE = 1
-)
-
 // shutdownTimeout is how long a drain is given.
 const shutdownTimeout = 42 * time.Second
 
@@ -28,20 +23,20 @@ const shutdownTimeout = 42 * time.Second
 const populateTimeout = 30 * time.Second
 
 func Run() int {
-	configPath := flag.String("config", "./sample-config.toml", "path to configuration")
+	configPath := flag.String("config", internal.DefaultConfigPath, "path to configuration")
 	flag.Parse()
 
-	config, err := ReadConfig(*configPath)
+	config, err := internal.ReadConfig(*configPath)
 	if err != nil {
 		log.Error().Err(err).Msg("cannot read configuration")
-		return EXIT_FAILURE
+		return internal.ExitFailure
 	}
 	internal.SetupLogging(config.Loglevel)
 
 	kubeConn, err := NewKube(config.Kube)
 	if err != nil {
 		log.Error().Err(err).Msg("cannot find kubernetes")
-		return EXIT_FAILURE
+		return internal.ExitFailure
 	}
 
 	// The cache is filled before anything is served.
@@ -50,7 +45,7 @@ func Run() int {
 	defer cancelPopulate()
 	if err := cache.Populate(populateCtx); err != nil {
 		log.Error().Err(err).Msg("cannot populate cache")
-		return EXIT_FAILURE
+		return internal.ExitFailure
 	}
 	populated := cache.Get("")
 	log.Info().
@@ -70,7 +65,7 @@ func Run() int {
 	apiServer, err := ListenAPI(config, kubeConn, cache)
 	if err != nil {
 		log.Error().Err(err).Msg("cannot set up the api server")
-		return EXIT_FAILURE
+		return internal.ExitFailure
 	}
 
 	metricsServer := ListenMetrics(config, kubeConn)
@@ -107,14 +102,14 @@ func Run() int {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 
-	exit := EXIT_SUCCESS
+	exit := internal.ExitSuccess
 	select {
 	case sig := <-signals:
 		log.Info().Str("signal", sig.String()).Msg("shutdown signal received")
 	case res := <-results:
 		if res.err != nil {
 			log.Error().Err(res.err).Str("server", res.name).Msg("server stopped unexpectedly")
-			exit = EXIT_FAILURE
+			exit = internal.ExitFailure
 		}
 	}
 
@@ -141,10 +136,10 @@ func Run() int {
 	for res := range results {
 		if res.err != nil {
 			log.Error().Err(res.err).Str("server", res.name).Msg("server exited with error")
-			exit = EXIT_FAILURE
+			exit = internal.ExitFailure
 		}
 	}
-	if exit == EXIT_SUCCESS {
+	if exit == internal.ExitSuccess {
 		log.Info().Msg("shutdown complete")
 	}
 	return exit

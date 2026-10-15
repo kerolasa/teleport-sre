@@ -291,12 +291,12 @@ func TestAPIDeployment(t *testing.T) {
 	}{
 		{
 			name: "one deployment",
-			path: "/deployment?ns=web&name=front",
+			path: "/deployment?ns=web&deployment=front",
 			want: `{"namespace":"web","name":"front","replicas":3}`,
 		},
 		{
 			name: "one deployment of the whole cluster",
-			path: "/deployment?name=cdn",
+			path: "/deployment?deployment=cdn",
 			want: `{"namespace":"web","name":"cdn","replicas":2}`,
 		},
 		{
@@ -322,13 +322,13 @@ func TestAPIDeployment(t *testing.T) {
 		},
 		{
 			name: "the same name in two namespaces",
-			path: "/deployment?name=shared",
+			path: "/deployment?deployment=shared",
 			want: `{"deployments":[{"namespace":"api","name":"shared","replicas":1},` +
 				`{"namespace":"web","name":"shared","replicas":2}]}`,
 		},
 		{
 			name: "the same name in the namespace that was asked about",
-			path: "/deployment?ns=web&name=shared",
+			path: "/deployment?ns=web&deployment=shared",
 			want: `{"namespace":"web","name":"shared","replicas":2}`,
 		},
 		{
@@ -340,7 +340,7 @@ func TestAPIDeployment(t *testing.T) {
 		},
 		{
 			name: "namespace spelled out with a name",
-			path: "/deployment?namespace=web&name=front",
+			path: "/deployment?namespace=web&deployment=front",
 			want: `{"namespace":"web","name":"front","replicas":3}`,
 		},
 	}
@@ -374,33 +374,33 @@ func TestAPIDeploymentNotFound(t *testing.T) {
 	}{
 		{
 			name: "namespace that is not there",
-			path: "/deployment?ns=nope&name=front",
+			path: "/deployment?ns=nope&deployment=front",
 			want: `{"error":"namespace \"nope\" does not exist"}`,
 		},
 		{
 			name: "namespace without the deployment",
-			path: "/deployment?ns=web&name=nope",
+			path: "/deployment?ns=web&deployment=nope",
 			want: `{"error":"deployment \"nope\" does not exist in namespace \"web\""}`,
 		},
 		{
 			name: "deployment that is not there at all",
-			path: "/deployment?name=nope",
+			path: "/deployment?deployment=nope",
 			want: `{"error":"deployment \"nope\" does not exist"}`,
 		},
 		{
 			name: "deployment of another namespace",
 			// The namespace was wrong rather than the deployment gone.
-			path: "/deployment?ns=web&name=backend",
+			path: "/deployment?ns=web&deployment=backend",
 			want: `{"error":"deployment \"backend\" does not exist in namespace \"web\""}`,
 		},
 		{
 			name: "namespace spelled out that is not there",
-			path: "/deployment?namespace=nope&name=front",
+			path: "/deployment?namespace=nope&deployment=front",
 			want: `{"error":"namespace \"nope\" does not exist"}`,
 		},
 		{
 			name: "namespace spelled out without the deployment",
-			path: "/deployment?namespace=web&name=nope",
+			path: "/deployment?namespace=web&deployment=nope",
 			want: `{"error":"deployment \"nope\" does not exist in namespace \"web\""}`,
 		},
 	}
@@ -427,12 +427,12 @@ func TestAPIDeploymentWithAColdCache(t *testing.T) {
 	// The one answer that must not claim the deployment is gone.
 	api := newColdTestAPI(t, testCluster()...)
 	for _, path := range []string{
-		"/deployment?ns=web&name=front",
-		"/deployment?namespace=web&name=front",
+		"/deployment?ns=web&deployment=front",
+		"/deployment?namespace=web&deployment=front",
 		"/deployment?ns=web",
-		"/deployment?name=front",
+		"/deployment?deployment=front",
 		"/deployment",
-		"/deployment?ns=nope&name=front",
+		"/deployment?ns=nope&deployment=front",
 	} {
 		t.Run(path, func(t *testing.T) {
 			t.Parallel()
@@ -491,28 +491,28 @@ func TestAPISetReplicas(t *testing.T) {
 	}{
 		{
 			name:     "scaling up",
-			path:     "/deployment?ns=web&name=front&replicas=5",
+			path:     "/deployment?ns=web&deployment=front&replicas=5",
 			replicas: 5,
 		},
 		{
 			name:     "scaling to none",
-			path:     "/deployment?ns=web&name=front&replicas=0",
+			path:     "/deployment?ns=web&deployment=front&replicas=0",
 			replicas: 0,
 		},
 		{
 			name:     "the namespace spelled out",
-			path:     "/deployment?namespace=web&name=front&replicas=7",
+			path:     "/deployment?namespace=web&deployment=front&replicas=7",
 			replicas: 7,
 		},
 		{
 			name:     "the count in the body of a form",
-			path:     "/deployment?ns=web&name=front",
+			path:     "/deployment?ns=web&deployment=front",
 			form:     url.Values{"replicas": {"4"}},
 			replicas: 4,
 		},
 		{
 			name:     "the deployment of another namespace",
-			path:     "/deployment?ns=api&name=shared&replicas=6",
+			path:     "/deployment?ns=api&deployment=shared&replicas=6",
 			replicas: 6,
 		},
 	}
@@ -565,7 +565,7 @@ func askedOf(t *testing.T, path string) (namespace, name string) {
 		namespace = query.Get("namespace")
 	}
 
-	return namespace, query.Get("name")
+	return namespace, query.Get("deployment")
 }
 
 // clusterHolds is every deployment of the cluster, in the order the service
@@ -612,37 +612,37 @@ func TestAPISetReplicasRefusesWhatItWillNotActOn(t *testing.T) {
 	}{
 		{
 			name:   "no count at all",
-			path:   "/deployment?ns=web&name=front",
+			path:   "/deployment?ns=web&deployment=front",
 			status: http.StatusBadRequest,
 			want:   `{"error":"no replicas were given, and they must be a whole number of zero or more"}`,
 		},
 		{
 			name:   "a count that is not a number",
-			path:   "/deployment?ns=web&name=front&replicas=three",
+			path:   "/deployment?ns=web&deployment=front&replicas=three",
 			status: http.StatusBadRequest,
 			want:   `{"error":"replicas \"three\" is not a whole number"}`,
 		},
 		{
 			name:   "a count that is not whole",
-			path:   "/deployment?ns=web&name=front&replicas=2.5",
+			path:   "/deployment?ns=web&deployment=front&replicas=2.5",
 			status: http.StatusBadRequest,
 			want:   `{"error":"replicas \"2.5\" is not a whole number"}`,
 		},
 		{
 			name:   "a count with room in it",
-			path:   "/deployment?ns=web&name=front&replicas=%203",
+			path:   "/deployment?ns=web&deployment=front&replicas=%203",
 			status: http.StatusBadRequest,
 			want:   `{"error":"replicas \" 3\" is not a whole number"}`,
 		},
 		{
 			name:   "a count that is too large to count",
-			path:   "/deployment?ns=web&name=front&replicas=99999999999999999999",
+			path:   "/deployment?ns=web&deployment=front&replicas=99999999999999999999",
 			status: http.StatusNotAcceptable,
 			want:   `{"error":"replicas 99999999999999999999 is over the limit of 100"}`,
 		},
 		{
 			name:   "a negative count",
-			path:   "/deployment?ns=web&name=front&replicas=-1",
+			path:   "/deployment?ns=web&deployment=front&replicas=-1",
 			status: http.StatusBadRequest,
 			want:   `{"error":"replicas -1 is fewer than zero, and must be a whole number of zero or more"}`,
 		},
@@ -654,19 +654,19 @@ func TestAPISetReplicasRefusesWhatItWillNotActOn(t *testing.T) {
 		},
 		{
 			name:   "no namespace",
-			path:   "/deployment?name=front&replicas=5",
+			path:   "/deployment?deployment=front&replicas=5",
 			status: http.StatusBadRequest,
 			want:   `{"error":"no namespace was given, and a deployment name can repeat in another namespace"}`,
 		},
 		{
 			name:   "a namespace the cluster does not have",
-			path:   "/deployment?ns=nope&name=front&replicas=5",
+			path:   "/deployment?ns=nope&deployment=front&replicas=5",
 			status: http.StatusNotFound,
 			want:   `{"error":"namespace \"nope\" does not exist"}`,
 		},
 		{
 			name:   "a deployment the cluster does not have",
-			path:   "/deployment?ns=web&name=nope&replicas=5",
+			path:   "/deployment?ns=web&deployment=nope&replicas=5",
 			status: http.StatusNotFound,
 			want:   `{"error":"deployment \"nope\" does not exist in namespace \"web\""}`,
 		},
@@ -722,7 +722,7 @@ func TestAPISetReplicasOverTheLimit(t *testing.T) {
 			t.Parallel()
 
 			api, _, _ := apiOverCluster(t, Conf{MaxReplicas: test.limit}, testCluster()...)
-			path := "/deployment?ns=web&name=front&replicas=" + test.replicas
+			path := "/deployment?ns=web&deployment=front&replicas=" + test.replicas
 			got := put(t, api, path, nil)
 			if got.status != test.status {
 				t.Fatalf("PUT %s status = %d, want %d (%s)", path, got.status, test.status, got.body)
@@ -750,7 +750,7 @@ func TestAPISetReplicasWithAColdCache(t *testing.T) {
 	cache := NewCache(KubeConn{k8s: client})
 	api := serveAPI(t, Conf{API: Listener{Prefix: "/"}}, KubeConn{k8s: client}, cache)
 
-	got := put(t, api, "/deployment?ns=web&name=front&replicas=5", nil)
+	got := put(t, api, "/deployment?ns=web&deployment=front&replicas=5", nil)
 	if got.status != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want %d (%s)", got.status, http.StatusServiceUnavailable, got.body)
 	}
@@ -830,7 +830,7 @@ func TestAPISetReplicasWhenTheClusterWillNotDoIt(t *testing.T) {
 			}
 			api := serveAPI(t, Conf{API: Listener{Prefix: "/"}}, KubeConn{k8s: client}, cache)
 
-			got := put(t, api, "/deployment?ns=web&name=front&replicas=5", nil)
+			got := put(t, api, "/deployment?ns=web&deployment=front&replicas=5", nil)
 			if got.status != test.status {
 				t.Fatalf("status = %d, want %d (%s)", got.status, test.status, got.body)
 			}
@@ -849,7 +849,7 @@ func TestAPISetReplicasWhenTheClusterWillNotDoIt(t *testing.T) {
 func TestAPIUIReplicas(t *testing.T) {
 	t.Parallel()
 
-	got := get(t, newTestAPI(t, testCluster()...), "/ui/deployment?ns=web&name=front")
+	got := get(t, newTestAPI(t, testCluster()...), "/ui/deployment?ns=web&deployment=front")
 	if got.status != http.StatusOK {
 		t.Fatalf("status = %d, want %d (%s)", got.status, http.StatusOK, got.body)
 	}
@@ -857,7 +857,7 @@ func TestAPIUIReplicas(t *testing.T) {
 		t.Errorf("content type = %q, want html", got.contentType)
 	}
 	for _, want := range []string{
-		`hx-get="/ui/deployment/edit?name=front&amp;ns=web"`,
+		`hx-get="/ui/deployment/edit?deployment=front&amp;ns=web"`,
 		">3</button>",
 	} {
 		if !strings.Contains(got.body, want) {
@@ -872,7 +872,7 @@ func TestAPIUIReplicas(t *testing.T) {
 func TestAPIUIEditReplicas(t *testing.T) {
 	t.Parallel()
 
-	got := get(t, newTestAPI(t, testCluster()...), "/ui/deployment/edit?ns=web&name=front")
+	got := get(t, newTestAPI(t, testCluster()...), "/ui/deployment/edit?ns=web&deployment=front")
 	if got.status != http.StatusOK {
 		t.Fatalf("status = %d, want %d (%s)", got.status, http.StatusOK, got.body)
 	}
@@ -881,7 +881,7 @@ func TestAPIUIEditReplicas(t *testing.T) {
 	}
 	for _, want := range []string{
 		"<form",
-		`hx-put="/ui/deployment?name=front&amp;ns=web"`,
+		`hx-put="/ui/deployment?deployment=front&amp;ns=web"`,
 		`name="replicas"`,
 		`value="3"`,
 		`type="submit"`,
@@ -900,7 +900,7 @@ func TestAPIUIEditReplicasTellsTheConfiguredLimit(t *testing.T) {
 	t.Parallel()
 
 	api, _, _ := apiOverCluster(t, Conf{MaxReplicas: 7}, testCluster()...)
-	got := get(t, api, "/ui/deployment/edit?ns=web&name=front")
+	got := get(t, api, "/ui/deployment/edit?ns=web&deployment=front")
 	if !strings.Contains(got.body, `max="7"`) {
 		t.Errorf("the form does not carry the configured limit:\n%s", got.body)
 	}
@@ -914,8 +914,8 @@ func TestAPIUIEditReplicasTheTableOffersIt(t *testing.T) {
 		t.Fatalf("status = %d, want %d (%s)", got.status, http.StatusOK, got.body)
 	}
 	for _, want := range []string{
-		`hx-get="/ui/deployment/edit?name=cdn&amp;ns=web"`,
-		`hx-get="/ui/deployment/edit?name=backend&amp;ns=api"`,
+		`hx-get="/ui/deployment/edit?deployment=cdn&amp;ns=web"`,
+		`hx-get="/ui/deployment/edit?deployment=backend&amp;ns=api"`,
 		">2</button>",
 	} {
 		if !strings.Contains(got.body, want) {
@@ -943,7 +943,7 @@ func TestAPIUISetReplicas(t *testing.T) {
 			name:   "a count the service accepts",
 			form:   url.Values{"replicas": {"5"}},
 			status: http.StatusOK,
-			wants:  []string{">5</button>", `hx-get="/ui/deployment/edit?name=front&amp;ns=web"`},
+			wants:  []string{">5</button>", `hx-get="/ui/deployment/edit?deployment=front&amp;ns=web"`},
 			lacks:  []string{"<form"},
 			held:   5,
 		},
@@ -986,7 +986,7 @@ func TestAPIUISetReplicas(t *testing.T) {
 			t.Parallel()
 
 			api, client, cache := apiOverCluster(t, Conf{}, testCluster()...)
-			got := put(t, api, "/ui/deployment?ns=web&name=front", test.form)
+			got := put(t, api, "/ui/deployment?ns=web&deployment=front", test.form)
 			if got.status != test.status {
 				t.Fatalf("PUT /ui/deployment status = %d, want %d (%s)", got.status, test.status, got.body)
 			}
@@ -1019,7 +1019,7 @@ func TestAPIUISetReplicasUpdatesTheCluster(t *testing.T) {
 	t.Parallel()
 
 	api, client, cache := apiOverCluster(t, Conf{}, testCluster()...)
-	got := put(t, api, "/ui/deployment?ns=web&name=front", url.Values{"replicas": {"5"}})
+	got := put(t, api, "/ui/deployment?ns=web&deployment=front", url.Values{"replicas": {"5"}})
 	if got.status != http.StatusOK {
 		t.Fatalf("status = %d, want %d (%s)", got.status, http.StatusOK, got.body)
 	}
@@ -1043,13 +1043,13 @@ func TestAPIUISetReplicasTellsWhyItDidNot(t *testing.T) {
 	}{
 		{
 			name:   "a deployment the cluster does not have",
-			path:   "/ui/deployment?ns=web&name=nope",
+			path:   "/ui/deployment?ns=web&deployment=nope",
 			status: http.StatusNotFound,
 			want:   "does not exist in namespace",
 		},
 		{
 			name:   "a namespace the cluster does not have",
-			path:   "/ui/deployment?ns=nope&name=front",
+			path:   "/ui/deployment?ns=nope&deployment=front",
 			status: http.StatusNotFound,
 			want:   "does not exist",
 		},
@@ -1099,7 +1099,7 @@ func TestAPIUISetReplicasTheClusterWillNotDoIt(t *testing.T) {
 	}
 	api := serveAPI(t, Conf{API: Listener{Prefix: "/"}}, KubeConn{k8s: client}, cache)
 
-	got := put(t, api, "/ui/deployment?ns=web&name=front", url.Values{"replicas": {"5"}})
+	got := put(t, api, "/ui/deployment?ns=web&deployment=front", url.Values{"replicas": {"5"}})
 	if got.status != http.StatusForbidden {
 		t.Fatalf("status = %d, want %d (%s)", got.status, http.StatusForbidden, got.body)
 	}
@@ -1123,7 +1123,7 @@ func TestAPISetReplicasIsReachable(t *testing.T) {
 	conf := Conf{API: Listener{Host: "127.0.0.1", Prefix: "/teleport"}}
 	api := serveAPI(t, conf, KubeConn{k8s: client}, cache)
 
-	if got := put(t, api, "/teleport/deployment?ns=web&name=front&replicas=2", nil); got.status != http.StatusOK {
+	if got := put(t, api, "/teleport/deployment?ns=web&deployment=front&replicas=2", nil); got.status != http.StatusOK {
 		t.Errorf("PUT /teleport/deployment status = %d, want %d (%s)", got.status, http.StatusOK, got.body)
 	}
 	if held := clusterReplicas(t, client, "web", "front"); held != 2 {
