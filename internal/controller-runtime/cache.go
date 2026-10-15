@@ -86,6 +86,17 @@ func (c *Cache) Populated() bool {
 	return c.populated
 }
 
+// Set records what the cluster has just confirmed for a deployment.  The
+// resource version is left to the watch, which has not seen the events since.
+func (c *Cache) Set(deploy Deployment) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.deployments[cacheKey(deploy.Namespace, deploy.Name)] = deploy
+	refresh(deploymentResource)
+	c.measure()
+}
+
 // Get returns the cached namespaces and the cached deployments of namespace.
 // An empty namespace means every namespace, as it does in List.
 func (c *Cache) Get(namespace string) Inventory {

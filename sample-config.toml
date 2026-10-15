@@ -1,6 +1,10 @@
 # Log level can be one of: trace debug info warn error fatal panic
 loglevel = "debug"
 
+# The largest number of replicas an update is allowed to scale a deployment
+# to.  A negative value makes kubernetes cluster to choose upper limit.
+max_replicas = 100
+
 [api]
     host = "0.0.0.0"
     port = 8443

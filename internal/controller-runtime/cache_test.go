@@ -309,6 +309,35 @@ func nextWatch(t *testing.T, started <-chan *watch.RaceFreeFakeWatcher) *watch.R
 	}
 }
 
+func TestCacheSet(t *testing.T) {
+	client := fake.NewClientset(deployment("web", "front", 3), deployment("web", "cdn", 2))
+	cache := newTestCache(client)
+	if err := cache.Populate(context.Background()); err != nil {
+		t.Fatalf("Populate() returned an error: %v", err)
+	}
+	version := cache.Get("").DeploymentsResourceVersion
+
+	// A confirmed change is recorded without waiting for the watch to report
+	// it.
+	cache.Set(Deployment{Namespace: "web", Name: "front", Replicas: 8})
+
+	if !hasDeployment(cache, "web", "front", 8) {
+		t.Errorf("Get() = %+v, want front at 8 replicas", cache.Get("web").Deployments)
+	}
+	if !hasDeployment(cache, "web", "cdn", 2) {
+		t.Errorf("Get() = %+v, want cdn left at 2 replicas", cache.Get("web").Deployments)
+	}
+	if written := counted(client, "update", "deployments"); written != 0 {
+		t.Errorf("the cluster was asked to update a deployment %d times, want the cache only to record", written)
+	}
+
+	// The version is left where the watch has put it, since the cache has not
+	// seen the events in between.
+	if got := cache.Get("").DeploymentsResourceVersion; got != version {
+		t.Errorf("Get() reported version %q, want it left at %q", got, version)
+	}
+}
+
 func TestCacheWatchAppliesChanges(t *testing.T) {
 	client := fake.NewClientset(deployment("web", "front", 1))
 	cache := newTestCache(client)

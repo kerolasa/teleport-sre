@@ -1,0 +1,47 @@
+{{- /* The replicas cell: the number, the form it is changed with, and the
+       number carrying the reason an update did not happen.  A `this` target
+       on cancel would be the button rather than the form it is in. */ -}}
+{{- if .Editing -}}
+<form
+  class="replicas"
+  hx-put="{{ .ReplicasURL }}"
+  hx-target="this"
+  hx-swap="outerHTML"
+  hx-on::response-error="showUpdateFailure(event)"
+>
+  <input
+    class="replicas"
+    type="number"
+    name="replicas"
+    min="0"
+    max="{{ .Limit }}"
+    step="1"
+    value="{{ .Replicas }}"
+    aria-label="replicas"
+    title="replicas"
+    autofocus
+  />
+  <button type="submit" title="set replicas">Submit</button>
+  <button
+    type="button"
+    title="cancel"
+    hx-get="{{ .ReplicasURL }}"
+    hx-target="closest form"
+    hx-swap="outerHTML"
+  >
+    Cancel
+  </button>
+</form>
+{{- else -}}
+  {{- with .Message -}}
+<span class="replicas-error" title="replicas">{{ . }}</span>
+  {{- end -}}
+<button
+  type="button"
+  class="replicas"
+  title="edit replicas"
+  hx-get="{{ .EditURL }}"
+  hx-target="this"
+  hx-swap="outerHTML"
+>{{ .Replicas }}</button>
+{{- end -}}

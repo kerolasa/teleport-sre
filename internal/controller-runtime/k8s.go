@@ -151,6 +151,31 @@ func (k KubeConn) Reachable(ctx context.Context) error {
 	return nil
 }
 
+// SetReplicas sets the number of replicas of the deployment the namespace and
+// the name name.
+//
+// The deployment is read before it is written, since the update carries the
+// whole of it.  The read version goes with the write, so that the api server
+// turns down an update to a deployment something else has changed in between.
+func (k KubeConn) SetReplicas(ctx context.Context, namespace, name string, replicas int32) error {
+	deployments := k.k8s.AppsV1().Deployments(namespace)
+
+	current, err := deployments.Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("cannot read deployment %q in namespace %q: %w", name, namespace, err)
+	}
+
+	updated := current.DeepCopy()
+	updated.Spec.Replicas = &replicas
+
+	if _, err := deployments.Update(ctx, updated, metav1.UpdateOptions{}); err != nil {
+		return fmt.Errorf("cannot set deployment %q in namespace %q to %d replicas: %w",
+			name, namespace, replicas, err)
+	}
+
+	return nil
+}
+
 // WatchDeployments streams the changes made to the deployments of every
 // namespace, starting from resourceVersion.  An empty one starts from
 // wherever the api server is now.  Bookmarks are allowed, so that a quiet

@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 )
@@ -144,6 +147,85 @@ func TestList(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSetReplicas(t *testing.T) {
+	t.Parallel()
+
+	// A deployment carries more than its replica count, and the rest of it is
+	// left as it was.
+	front := deployment("web", "front", 3)
+	front.Labels = map[string]string{"app": "front"}
+	front.Spec.Template.Spec.Containers = []corev1.Container{{Name: "front", Image: "front:1"}}
+
+	conn := cluster(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "web"}}, front)
+	if err := conn.SetReplicas(context.Background(), "web", "front", 7); err != nil {
+		t.Fatalf("SetReplicas() returned an error: %v", err)
+	}
+
+	got, err := conn.k8s.AppsV1().Deployments("web").Get(context.Background(), "front", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("cannot read the deployment: %v", err)
+	}
+	if got.Spec.Replicas == nil || *got.Spec.Replicas != 7 {
+		t.Errorf("the deployment asks for %v replicas, want 7", got.Spec.Replicas)
+	}
+	if !reflect.DeepEqual(got.Labels, front.Labels) {
+		t.Errorf("the deployment carries the labels %v, want %v", got.Labels, front.Labels)
+	}
+	if !reflect.DeepEqual(got.Spec.Template.Spec.Containers, front.Spec.Template.Spec.Containers) {
+		t.Errorf("the deployment carries the containers %v, want %v",
+			got.Spec.Template.Spec.Containers, front.Spec.Template.Spec.Containers)
+	}
+
+	// Scaling it down to none is a whole number of replicas like any other.
+	if err := conn.SetReplicas(context.Background(), "web", "front", 0); err != nil {
+		t.Fatalf("SetReplicas() returned an error: %v", err)
+	}
+	got, err = conn.k8s.AppsV1().Deployments("web").Get(context.Background(), "front", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("cannot read the deployment: %v", err)
+	}
+	if got.Spec.Replicas == nil || *got.Spec.Replicas != 0 {
+		t.Errorf("the deployment asks for %v replicas, want none", got.Spec.Replicas)
+	}
+}
+
+func TestSetReplicasErrors(t *testing.T) {
+	t.Parallel()
+
+	deployments := schema.GroupResource{Group: "apps", Resource: "deployments"}
+
+	t.Run("a deployment that is not there", func(t *testing.T) {
+		t.Parallel()
+
+		err := cluster().SetReplicas(context.Background(), "web", "front", 3)
+		if !apierrors.IsNotFound(err) {
+			t.Errorf("SetReplicas() error = %v, want it to wrap a not found", err)
+		}
+		if got := err.Error(); !strings.Contains(got, `"front"`) {
+			t.Errorf("SetReplicas() error = %q, want it to name the deployment it could not read", got)
+		}
+	})
+
+	t.Run("a cluster that refuses the update", func(t *testing.T) {
+		t.Parallel()
+
+		denied := apierrors.NewForbidden(deployments, "front", errors.New("not allowed to scale"))
+		client := fake.NewClientset(deployment("web", "front", 3))
+		client.PrependReactor("update", "deployments", func(k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, denied
+		})
+
+		err := KubeConn{k8s: client}.SetReplicas(context.Background(), "web", "front", 5)
+		if !errors.Is(err, denied) {
+			t.Errorf("SetReplicas() error = %v, want it to wrap %v", err, denied)
+		}
+		// The reason the api server gave is kept.
+		if got := err.Error(); !strings.Contains(got, "not allowed to scale") {
+			t.Errorf("SetReplicas() error = %q, want it to carry what the api server said", got)
+		}
+	})
 }
 
 func TestListErrors(t *testing.T) {

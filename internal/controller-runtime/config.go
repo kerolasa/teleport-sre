@@ -9,6 +9,10 @@ type Conf struct {
 	Metrics  Listener
 	Kube     KubeConf
 	Loglevel string
+	// MaxReplicas is the largest number of replicas a request is allowed to
+	// scale a deployment to.  An empty setting gets the default, and a negative
+	// one lifts the limit.
+	MaxReplicas int32 `toml:"max_replicas"`
 }
 
 type Listener struct {

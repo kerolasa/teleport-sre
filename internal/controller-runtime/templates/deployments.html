@@ -7,22 +7,11 @@
     </tr>
   </thead>
   <tbody>
-    {{- range .Deployments }}
+    {{- range .Rows }}
     <tr>
       <td>{{ .Namespace }}</td>
       <td>{{ .Name }}</td>
-      <td class="replicas">
-        <!-- TODO: editing a row wants a fragment of its own; the deployment
-             route answers with json for now. -->
-        <button
-          type="button"
-          class="replicas"
-          title="edit replicas"
-          hx-get="{{ $.DeploymentURL }}?ns={{ .Namespace }}&amp;name={{ .Name }}"
-          hx-target="closest tr"
-          hx-swap="outerHTML"
-        >{{ .Replicas }}</button>
-      </td>
+      <td class="replicas">{{ template "replicas.html" .Cell }}</td>
     </tr>
     {{- else }}
     <tr>
