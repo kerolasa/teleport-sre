@@ -26,14 +26,7 @@ type rootView struct {
 // deploymentsView is what the deployment table template renders.
 type deploymentsView struct {
 	DeploymentURL string
-	Deployments   []deployment
-}
-
-// deployment is a row of the table.
-type deployment struct {
-	Namespace string
-	Name      string
-	Replicas  int32
+	Deployments   []Deployment
 }
 
 // render writes the named template as the response body

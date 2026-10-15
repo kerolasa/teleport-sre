@@ -18,9 +18,13 @@ type httpError struct {
 // api serves the web ui.
 type api struct {
 	prefix string
+	// kubeConn is the client to the kubernetes.
+	kubeConn KubeConn
+	// cache is what the read only routes answer from.
+	cache *Cache
 }
 
-func ListenAPI(conf Conf) *http.Server {
+func ListenAPI(conf Conf, kubeConn KubeConn, cache *Cache) *http.Server {
 	gin.SetMode(gin.ReleaseMode)
 	gin.DefaultWriter = io.Discard
 	gin.DisableConsoleColor()
@@ -33,7 +37,11 @@ func ListenAPI(conf Conf) *http.Server {
 		c.JSON(http.StatusNotFound, httpError{Err: "not found"})
 	})
 
-	api := &api{prefix: conf.API.Prefix}
+	api := &api{
+		prefix:   conf.API.Prefix,
+		kubeConn: kubeConn,
+		cache:    cache,
+	}
 	prefix := r.Group(api.prefix)
 	prefix.GET("/", api.rootPage)
 	prefix.GET("/list", api.deployments)
@@ -60,14 +68,14 @@ func (a *api) rootPage(c *gin.Context) {
 	})
 }
 
-// deployments renders the table fragment the list button swaps in.
+// deployments renders the table fragment the list button swaps in.  The rows
+// come from the cache, so asking costs the cluster nothing.
 func (a *api) deployments(c *gin.Context) {
-	// FIXME: serve the deployments once the cache is in place.
-	a.renderDeployments(c, nil)
+	a.renderDeployments(c, a.cache.Get(c.Query("ns")).Deployments)
 }
 
 // renderDeployments renders the table fragment with the given rows.
-func (a *api) renderDeployments(c *gin.Context, deployments []deployment) {
+func (a *api) renderDeployments(c *gin.Context, deployments []Deployment) {
 	a.render(c, http.StatusOK, "deployments.html", deploymentsView{
 		DeploymentURL: a.url("deployment"),
 		Deployments:   deployments,

@@ -7,14 +7,24 @@ import (
 type Conf struct {
 	API      Listener
 	Metrics  Listener
+	Kube     KubeConf
 	Loglevel string
 }
 
 type Listener struct {
 	Host   string
 	Port   uint16
-	Prefix string // this for relocating api
-	Path   string // metrics uri
+	Prefix string // where the api is mounted
+	Path   string // where the metrics are
+}
+
+// KubeConf tells how to reach the kubernetes api server.  An empty one leaves
+// the discovery to the application, which then behaves like kubectl does.
+type KubeConf struct {
+	// Kubeconfig is the path of the kubeconfig to authenticate with.
+	Kubeconfig string
+	// Context is the kubeconfig context to use, or its current one.
+	Context string
 }
 
 func ReadConfig(path string) (Conf, error) {

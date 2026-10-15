@@ -1,6 +1,7 @@
 package controllerruntime
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/zerolog/log"
 
 	"github.com/kerolasa/teleport-sre/internal"
 )
@@ -23,8 +25,24 @@ const heartbeatPath = "/_heartbeat"
 // versionPath is where a person asks which version is running.
 const versionPath = "/version"
 
+// aliveBody is what the heartbeat answers while the api server answers.
+const aliveBody = "ok"
+
+// notAliveBody is what the heartbeat answers while the api server does not.
+const notAliveBody = "not alive"
+
+// heartbeatTimeout is how long the heartbeat waits for the api server.
+const heartbeatTimeout = 3 * time.Second
+
 // unmatchedRoute labels the requests that matched no route.
 const unmatchedRoute = "unmatched"
+
+// namespaceResource and deploymentResource are the cacheRefreshes label
+// values, naming the two halves of the cache.
+const (
+	namespaceResource  = "namespaces"
+	deploymentResource = "deployments"
+)
 
 // apiRequests counts the requests the api served.
 var apiRequests = prometheus.NewCounterVec(
@@ -37,8 +55,47 @@ var apiRequests = prometheus.NewCounterVec(
 	[]string{"uri"},
 )
 
+// cacheNamespaces reports how many namespaces the cache is holding.
+var cacheNamespaces = prometheus.NewGauge(
+	prometheus.GaugeOpts{
+		Namespace: "teleport",
+		Subsystem: "cache",
+		Name:      "namespaces",
+		Help:      "Number of namespaces the cache is holding.",
+	},
+)
+
+// cacheDeployments reports how many deployments the cache is holding.
+var cacheDeployments = prometheus.NewGauge(
+	prometheus.GaugeOpts{
+		Namespace: "teleport",
+		Subsystem: "cache",
+		Name:      "deployments",
+		Help:      "Number of deployments the cache is holding.",
+	},
+)
+
+// cacheRefreshes counts the refreshes of the cache, by resource.
+//
+// A refresh is a change folded into the cache from a watch, or the listing
+// that fills it.  A bookmark folds no change in and is not counted, since a
+// quiet cluster sends those only to say it is still there.
+var cacheRefreshes = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Namespace: "teleport",
+		Subsystem: "cache",
+		Name:      "refreshes_total",
+		Help:      "Total number of times the cache has been refreshed, by resource.",
+	},
+	[]string{"resource"},
+)
+
 func init() {
-	prometheus.MustRegister(apiRequests)
+	prometheus.MustRegister(apiRequests, cacheNamespaces, cacheDeployments, cacheRefreshes)
+	// Both label values are given up front, so that each series is reported
+	// from the start rather than appearing once its first change is seen.
+	cacheRefreshes.WithLabelValues(namespaceResource)
+	cacheRefreshes.WithLabelValues(deploymentResource)
 }
 
 // CountRequests records how often each uri is requested.
@@ -55,7 +112,7 @@ func CountRequests() gin.HandlerFunc {
 
 // ListenMetrics builds the metrics, heartbeat and version server.  It listens
 // on its own address so that it is not exposed with the api.
-func ListenMetrics(conf Conf) *http.Server {
+func ListenMetrics(conf Conf, kubeConn KubeConn) *http.Server {
 	path := conf.Metrics.Path
 	if path == "" {
 		path = defaultMetricsPath
@@ -67,7 +124,7 @@ func ListenMetrics(conf Conf) *http.Server {
 
 	mux := http.NewServeMux()
 	mux.Handle(path, promhttp.Handler())
-	mux.HandleFunc(heartbeatPath, heartbeat)
+	mux.HandleFunc(heartbeatPath, heartbeat(kubeConn))
 	mux.HandleFunc(versionPath, version)
 
 	return &http.Server{
@@ -80,11 +137,24 @@ func ListenMetrics(conf Conf) *http.Server {
 	}
 }
 
-// heartbeat prints ok while the controller is alive.  It sits here rather
-// than on the api listen because a probe reaches it without the gateway.
-func heartbeat(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
+// heartbeat answers whether the api server answers, since a controller that
+// cannot reach the cluster has nothing to serve.  It sits here rather than on
+// the api listen because a probe reaches it without the gateway.
+func heartbeat(kubeConn KubeConn) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), heartbeatTimeout)
+		defer cancel()
+
+		if err := kubeConn.Reachable(ctx); err != nil {
+			log.Error().Err(err).Msg("the heartbeat could not reach the api server")
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(notAliveBody))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(aliveBody))
+	}
 }
 
 // version prints the version stamped into the binary.

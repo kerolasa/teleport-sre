@@ -10,3 +10,15 @@ loglevel = "debug"
     host = "127.0.0.1"
     port = 9443
     path = "/metrics"
+
+# How the service reaches the kubernetes api server.  With both values left
+# empty it connects the way kubectl does: the service account of the pod it
+# runs in, and failing that the kubeconfig of the current user, which is
+# KUBECONFIG or ~/.kube/config.  That is what makes a local kind cluster work.
+[kube]
+    # Path of the kubeconfig to authenticate with.  A leading tilde is expanded.
+    #kubeconfig = "~/.kube/config"
+
+    # Kubeconfig context to use, defaults to the current context of the
+    # kubeconfig.
+    #context = "kind-kind"
