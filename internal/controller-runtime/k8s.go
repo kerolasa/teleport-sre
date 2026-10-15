@@ -95,15 +95,15 @@ func expandHome(path string) string {
 
 // Namespace is a namespace of the cluster as the service reports it.
 type Namespace struct {
-	Name string
+	Name string `json:"name" example:"default"`
 }
 
 // Deployment is a deployment of the cluster as the service reports it.
 type Deployment struct {
-	Namespace string
-	Name      string
+	Namespace string `json:"namespace" example:"default"`
+	Name      string `json:"name" example:"nginx"`
 	// Replicas is the number of replicas the deployment asks for.
-	Replicas int32
+	Replicas int32 `json:"replicas" example:"3"`
 }
 
 // Inventory contains information about the cluster as a whole.

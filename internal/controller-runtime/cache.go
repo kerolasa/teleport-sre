@@ -33,6 +33,7 @@ type Cache struct {
 	deployments        map[string]Deployment
 	namespacesVersion  string
 	deploymentsVersion string
+	populated          bool
 }
 
 // NewCache returns an empty cache.  Populate fills it before Watch starts.
@@ -70,9 +71,19 @@ func (c *Cache) Populate(ctx context.Context) error {
 	// A listing refreshes both halves.
 	refresh(namespaceResource)
 	refresh(deploymentResource)
+	c.populated = true
 	c.measure()
 
 	return nil
+}
+
+// Populated tells whether the cache has been filled, which the api asks before
+// answering from it.
+func (c *Cache) Populated() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return c.populated
 }
 
 // Get returns the cached namespaces and the cached deployments of namespace.

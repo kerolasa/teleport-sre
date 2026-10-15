@@ -12,13 +12,13 @@
       <td>{{ .Namespace }}</td>
       <td>{{ .Name }}</td>
       <td class="replicas">
-        <!-- TODO: the request returns the row with the replica count in an
-             editable form once the deployment routes are in place. -->
+        <!-- TODO: editing a row wants a fragment of its own; the deployment
+             route answers with json for now. -->
         <button
           type="button"
           class="replicas"
           title="edit replicas"
-          hx-get="{{ $.DeploymentURL }}?namespace={{ .Namespace }}&amp;name={{ .Name }}"
+          hx-get="{{ $.DeploymentURL }}?ns={{ .Namespace }}&amp;name={{ .Name }}"
           hx-target="closest tr"
           hx-swap="outerHTML"
         >{{ .Replicas }}</button>
